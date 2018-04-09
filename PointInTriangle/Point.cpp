@@ -33,19 +33,33 @@ void Point::draw(NVGcontext* vg) const
 	nvgStroke(vg);
 }
 
+// Compute barycentric coordinates (u, v, w) for
+// point p with respect to triangle (a, b, c)
+void barycentric(const Point& point, const Triangle& tri, float &u, float &v, float &w)
+{
+	const glm::vec2& p = point.pos;
+	const glm::vec2& a = tri.vertices[0];
+	const glm::vec2& b = tri.vertices[1];
+	const glm::vec2& c = tri.vertices[2];
+
+	glm::vec2 v0 = b - a, v1 = c - a, v2 = p - a;
+	float d00 = glm::dot(v0, v0);
+	float d01 = glm::dot(v0, v1);
+	float d11 = glm::dot(v1, v1);
+	float d20 = glm::dot(v2, v0);
+	float d21 = glm::dot(v2, v1);
+	float denom = d00 * d11 - d01 * d01;
+	v = (d11 * d20 - d01 * d21) / denom;
+	w = (d00 * d21 - d01 * d20) / denom;
+	u = 1.0f - v - w;
+}
+
 bool Point::inside(const Triangle& tri) const
 {
-	std::array<glm::vec2, 3> dirsToVerts;
-	for (size_t i = 0; i < tri.vertices.size(); ++i) {
-		dirsToVerts[i] = glm::normalize(tri.vertices[i] - this->pos);
-	}
+	float u, v, w;
+	barycentric(*this, tri, u, v, w);
 
-	float angleSum = 0;
-	for (size_t i = 0; i < dirsToVerts.size(); ++i) {
-		angleSum += glm::abs(glm::acos(glm::dot(dirsToVerts[i], dirsToVerts[(i + 1) % 3])));
-	}
-
-	if (glm::abs(angleSum - 2 * glm::pi<float>()) < 0.001f)
+	if (u >= 0 && v >= 0 && w >= 0 && glm::abs(u + v + w - 1) < 0.001)
 		return true;
 	else
 		return false;
